@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/game_mode.dart';
 import 'games/tiktaktoe.dart';
 import 'games/color_match.dart';
 import 'games/fluppie_bird.dart';
@@ -26,27 +27,24 @@ class GameListScreen extends StatelessWidget {
         children: [
           GameTile(
             title: "Tic-Tac-Toe",
-            onTap:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => TicTacToeScreen()),
-                ),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => GameSelector()),
+            ),
           ),
           GameTile(
             title: "Flappy Square",
-            onTap:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => FlappySquareScreen()),
-                ),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => FlappySquareScreen()),
+            ),
           ),
           GameTile(
             title: "Color Match",
-            onTap:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ColorMatchScreen()),
-                ),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ColorMatchScreen()),
+            ),
           ),
         ],
       ),

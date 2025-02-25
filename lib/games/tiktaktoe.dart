@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 
 class TicTacToeScreen extends StatefulWidget {
+  final bool isSinglePlayer;
+  final String difficulty;
+
+  TicTacToeScreen({required this.isSinglePlayer, this.difficulty = "medium"});
+
   @override
   _TicTacToeScreenState createState() => _TicTacToeScreenState();
 }
@@ -11,17 +16,16 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   bool isX = true;
   String winner = "";
   List<int>? winningLine;
-  bool isSinglePlayer = true;
 
   void _handleTap(int index) {
     if (board[index] == "" && winner == "") {
       setState(() {
-        board[index] = "X";
-        isX = false;
+        board[index] = isX ? "X" : "O";
+        isX = !isX;
         _checkWinner();
       });
 
-      if (isSinglePlayer && winner == "") {
+      if (widget.isSinglePlayer && !isX && winner == "") {
         Future.delayed(Duration(milliseconds: 500), _aiMove);
       }
     }
@@ -39,100 +43,146 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   }
 
   int _findBestMove() {
+    List<int> emptyCells = [
+      for (int i = 0; i < 9; i++)
+        if (board[i] == "") i,
+    ];
+
+    if (emptyCells.isEmpty) return -1;
+
+    switch (widget.difficulty) {
+      case "easy":
+        return emptyCells[Random().nextInt(emptyCells.length)];
+      case "medium":
+        return _getMediumMove(emptyCells);
+      case "hard":
+        return _getBestMove();
+      default:
+        return emptyCells[Random().nextInt(emptyCells.length)];
+    }
+  }
+
+  int _getMediumMove(List<int> emptyCells) {
+    for (var i in emptyCells) {
+      board[i] = "O";
+      if (_isWinning("O")) {
+        board[i] = "";
+        return i;
+      }
+      board[i] = "";
+    }
+
+    for (var i in emptyCells) {
+      board[i] = "X";
+      if (_isWinning("X")) {
+        board[i] = "";
+        return i;
+      }
+      board[i] = "";
+    }
+
+    return emptyCells[Random().nextInt(emptyCells.length)];
+  }
+
+  int _getBestMove() {
     int bestScore = -1000;
     int bestMove = -1;
-    for (int i = 0; i < 9; i++) {
-      if (board[i] == "") {
-        board[i] = "O";
-        int score = _minimax(board, 0, false);
-        board[i] = "";
-        if (score > bestScore) {
-          bestScore = score;
-          bestMove = i;
-        }
+    List<int> emptyCells = [
+      for (int i = 0; i < 9; i++)
+        if (board[i] == "") i,
+    ];
+
+    for (var i in emptyCells) {
+      board[i] = "O";
+      int score = _minimax(board, 0, false);
+      board[i] = "";
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = i;
       }
     }
     return bestMove;
   }
 
-  int _minimax(List<String> newBoard, int depth, bool isMaximizing) {
-    String result = _checkWinnerMinimax(newBoard);
-    if (result != "") {
-      if (result == "O") return 10 - depth;
-      if (result == "X") return depth - 10;
-      return 0;
-    }
+  int _minimax(List<String> boardState, int depth, bool isMaximizing) {
+    if (_isWinning("O")) return 10 - depth;
+    if (_isWinning("X")) return depth - 10;
+    if (!boardState.contains("")) return 0;
 
-    if (isMaximizing) {
-      int bestScore = -1000;
-      for (int i = 0; i < 9; i++) {
-        if (newBoard[i] == "") {
-          newBoard[i] = "O";
-          int score = _minimax(newBoard, depth + 1, false);
-          newBoard[i] = "";
-          bestScore = max(score, bestScore);
-        }
-      }
-      return bestScore;
-    } else {
-      int bestScore = 1000;
-      for (int i = 0; i < 9; i++) {
-        if (newBoard[i] == "") {
-          newBoard[i] = "X";
-          int score = _minimax(newBoard, depth + 1, true);
-          newBoard[i] = "";
-          bestScore = min(score, bestScore);
-        }
-      }
-      return bestScore;
+    List<int> emptyCells = [
+      for (int i = 0; i < 9; i++)
+        if (boardState[i] == "") i,
+    ];
+    int bestScore = isMaximizing ? -1000 : 1000;
+
+    for (var i in emptyCells) {
+      boardState[i] = isMaximizing ? "O" : "X";
+      int score = _minimax(boardState, depth + 1, !isMaximizing);
+      boardState[i] = "";
+      bestScore = isMaximizing ? max(bestScore, score) : min(bestScore, score);
     }
+    return bestScore;
+  }
+
+  bool _isWinning(String player) {
+    return _winningCombinations.any(
+      (combo) =>
+          board[combo[0]] == player &&
+          board[combo[1]] == player &&
+          board[combo[2]] == player,
+    );
   }
 
   void _checkWinner() {
-    List<List<int>> winningCombinations = [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6],
-    ];
-    for (var combo in winningCombinations) {
+    for (var combo in _winningCombinations) {
       if (board[combo[0]] != "" &&
           board[combo[0]] == board[combo[1]] &&
           board[combo[1]] == board[combo[2]]) {
         setState(() {
           winner = "${board[combo[0]]} Menang!";
-          if (board[combo[0]] == "O") {
-            winner += " Yahaha! Cupu lu dek 😆";
-          }
           winningLine = combo;
         });
+        _showGameResultDialog(winner);
         return;
       }
     }
+    if (!board.contains("")) {
+      setState(() {
+        winner = "Seri!";
+      });
+      _showGameResultDialog("Seri!");
+    }
   }
 
-  String _checkWinnerMinimax(List<String> newBoard) {
-    for (var combo in [
-      [0, 1, 2],
-      [3, 4, 5],
-      [6, 7, 8],
-      [0, 3, 6],
-      [1, 4, 7],
-      [2, 5, 8],
-      [0, 4, 8],
-      [2, 4, 6],
-    ]) {
-      if (newBoard[combo[0]] != "" &&
-          newBoard[combo[0]] == newBoard[combo[1]] &&
-          newBoard[combo[1]] == newBoard[combo[2]]) {
-        return newBoard[combo[0]];
-      }
+  void _showGameResultDialog(String result) {
+    String message = result;
+    if (result.contains("X Menang") && widget.isSinglePlayer) {
+      message = "🥴 Kamu menang Tcih Paling Hoki Doang !!! 🥴";
+    } else if (result.contains("O Menang") && widget.isSinglePlayer) {
+      message =
+          "🤪🤪 Ih kalah Wwkwkwk Cupu lu dek back back back back !!! 🤪🤪";
+    } else if (result == "Seri!") {
+      message = "🙄 Tcih Boleh tahan🙄 ";
     }
-    return newBoard.contains("") ? "" : "draw";
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Text("Game Over"),
+            content: Text(message, textAlign: TextAlign.center),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _resetGame();
+                },
+                child: Text("Main Lagi"),
+              ),
+            ],
+          ),
+    );
   }
 
   void _resetGame() {
@@ -196,4 +246,15 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       ),
     );
   }
+
+  final List<List<int>> _winningCombinations = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6],
+  ];
 }
