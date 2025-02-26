@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import '../screens/navbar.dart';
 
 class TicTacToeScreen extends StatefulWidget {
   final bool isSinglePlayer;
   final String difficulty;
+  final int coins;
+  final Function(int) onCoinsChange;
 
-  TicTacToeScreen({required this.isSinglePlayer, this.difficulty = "medium"});
+  TicTacToeScreen({
+    required this.isSinglePlayer,
+    this.difficulty = "medium",
+    required this.coins,
+    required this.onCoinsChange,
+  });
 
   @override
   _TicTacToeScreenState createState() => _TicTacToeScreenState();
@@ -16,14 +24,33 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   bool isX = true;
   String winner = "";
   List<int>? winningLine;
+  bool _dialogOpen = false;
+  late int currentCoins;
+
+  final List<List<int>> _winningCombinations = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6],
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    currentCoins = widget.coins;
+  }
 
   void _handleTap(int index) {
     if (board[index] == "" && winner == "") {
       setState(() {
         board[index] = isX ? "X" : "O";
         isX = !isX;
-        _checkWinner();
       });
+      _checkWinner();
 
       if (widget.isSinglePlayer && !isX && winner == "") {
         Future.delayed(Duration(milliseconds: 500), _aiMove);
@@ -37,8 +64,8 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       setState(() {
         board[bestMove] = "O";
         isX = true;
-        _checkWinner();
       });
+      _checkWinner();
     }
   }
 
@@ -47,18 +74,14 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       for (int i = 0; i < 9; i++)
         if (board[i] == "") i,
     ];
-
     if (emptyCells.isEmpty) return -1;
 
-    switch (widget.difficulty) {
-      case "easy":
-        return emptyCells[Random().nextInt(emptyCells.length)];
-      case "medium":
-        return _getMediumMove(emptyCells);
-      case "hard":
-        return _getBestMove();
-      default:
-        return emptyCells[Random().nextInt(emptyCells.length)];
+    if (widget.difficulty == "easy") {
+      return emptyCells[Random().nextInt(emptyCells.length)];
+    } else if (widget.difficulty == "medium") {
+      return _getMediumMove(emptyCells);
+    } else {
+      return _getBestMove();
     }
   }
 
@@ -71,7 +94,6 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       }
       board[i] = "";
     }
-
     for (var i in emptyCells) {
       board[i] = "X";
       if (_isWinning("X")) {
@@ -80,48 +102,14 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       }
       board[i] = "";
     }
-
     return emptyCells[Random().nextInt(emptyCells.length)];
   }
 
   int _getBestMove() {
-    int bestScore = -1000;
-    int bestMove = -1;
-    List<int> emptyCells = [
+    return _getMediumMove([
       for (int i = 0; i < 9; i++)
         if (board[i] == "") i,
-    ];
-
-    for (var i in emptyCells) {
-      board[i] = "O";
-      int score = _minimax(board, 0, false);
-      board[i] = "";
-      if (score > bestScore) {
-        bestScore = score;
-        bestMove = i;
-      }
-    }
-    return bestMove;
-  }
-
-  int _minimax(List<String> boardState, int depth, bool isMaximizing) {
-    if (_isWinning("O")) return 10 - depth;
-    if (_isWinning("X")) return depth - 10;
-    if (!boardState.contains("")) return 0;
-
-    List<int> emptyCells = [
-      for (int i = 0; i < 9; i++)
-        if (boardState[i] == "") i,
-    ];
-    int bestScore = isMaximizing ? -1000 : 1000;
-
-    for (var i in emptyCells) {
-      boardState[i] = isMaximizing ? "O" : "X";
-      int score = _minimax(boardState, depth + 1, !isMaximizing);
-      boardState[i] = "";
-      bestScore = isMaximizing ? max(bestScore, score) : min(bestScore, score);
-    }
-    return bestScore;
+    ]);
   }
 
   bool _isWinning(String player) {
@@ -142,62 +130,59 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
           winner = "${board[combo[0]]} Menang!";
           winningLine = combo;
         });
-        _showGameResultDialog(winner);
+
+        int reward = 0;
+        if (winner.contains("X") && widget.isSinglePlayer) {
+          reward =
+              widget.difficulty == "easy"
+                  ? 1
+                  : widget.difficulty == "medium"
+                  ? 2
+                  : 3;
+          currentCoins += reward;
+          widget.onCoinsChange(currentCoins);
+        }
+
+        _showGameResultDialog(winner, reward);
         return;
       }
     }
+
     if (!board.contains("")) {
       setState(() {
         winner = "Seri!";
       });
-      _showGameResultDialog("Seri!");
+      _showGameResultDialog("Seri!", 0);
     }
   }
 
-  void _showGameResultDialog(String result) {
-    String message = result;
-    if (result.contains("X Menang") && widget.isSinglePlayer) {
-      message = "🥴 Kamu menang Tcih Paling Hoki Doang !!! 🥴";
-    } else if (result.contains("O Menang") && widget.isSinglePlayer) {
-      message =
-          "🤪🤪 Ih kalah Wwkwkwk Cupu lu dek back back back back !!! 🤪🤪";
-    } else if (result == "Seri!") {
-      message = "🙄 Tcih Boleh tahan🙄 ";
-    }
+  void _showGameResultDialog(String result, int reward) {
+    if (_dialogOpen) return;
+    _dialogOpen = true;
 
     showDialog(
       context: context,
-      barrierDismissible: false,
       builder:
           (context) => AlertDialog(
             title: Text("Game Over"),
-            content: Text(message, textAlign: TextAlign.center),
+            content: Text(result),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
-                  _resetGame();
+                  _dialogOpen = false;
+                  Navigator.pop(context, currentCoins);
                 },
-                child: Text("Main Lagi"),
+                child: Text("Tutup"),
               ),
             ],
           ),
     );
   }
 
-  void _resetGame() {
-    setState(() {
-      board = List.filled(9, "");
-      isX = true;
-      winner = "";
-      winningLine = null;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Tic-Tac-Toe")),
+      appBar: Navbar(coins: currentCoins),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -212,49 +197,33 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
               crossAxisCount: 3,
             ),
             itemCount: 9,
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: winner == "" ? () => _handleTap(index) : null,
-                child: Container(
-                  margin: EdgeInsets.all(4),
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color:
-                        winningLine?.contains(index) == true
-                            ? Colors.greenAccent
-                            : Colors.blueAccent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(
-                    child: Text(
-                      board[index],
-                      style: TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+            itemBuilder:
+                (context, index) => GestureDetector(
+                  onTap: winner == "" ? () => _handleTap(index) : null,
+                  child: Container(
+                    margin: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color:
+                          winningLine?.contains(index) == true
+                              ? Colors.greenAccent
+                              : Colors.blueAccent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        board[index],
+                        style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              );
-            },
           ),
-          SizedBox(height: 20),
-          ElevatedButton(onPressed: _resetGame, child: Text("Reset Game")),
         ],
       ),
     );
   }
-
-  final List<List<int>> _winningCombinations = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
-  ];
 }
