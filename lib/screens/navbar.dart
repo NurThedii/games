@@ -9,7 +9,7 @@ class Navbar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: const Text("Lets Play The Games "),
+      title: const Text("Games 🎮"),
       actions: [
         Row(
           children: [
@@ -17,10 +17,7 @@ class Navbar extends StatelessWidget implements PreferredSizeWidget {
             const SizedBox(width: 5),
             Text(
               "$coins",
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 15),
           ],

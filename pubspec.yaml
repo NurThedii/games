@@ -36,6 +36,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
   shared_preferences: ^2.5.2
+  audioplayers: ^6.2.0
+  animate_do: ^4.2.0
+  animated_text_kit: ^4.2.3
 
 dev_dependencies:
   flutter_test:
